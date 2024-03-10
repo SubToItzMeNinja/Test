@@ -73,7 +73,7 @@ module.exports = async function () {
     app.use('/login', express.static(path.join(__dirname, 'page', 'login')));
     app.use('/verification', express.static(path.join(__dirname, 'page', 'verification')));
 
-    app.listen(8080, async () => {
+    app.listen(80, async () => {
         console.log(chalk.bold.green('[+] Server is running on port 8080.'))
     })
 }
